@@ -1,7 +1,7 @@
-#! /usr/local/bin/python3.8
+#! /usr/local/bin/python3
 from __future__ import print_function
 import os.path
-#import sys
+import time
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -11,7 +11,7 @@ from google.oauth2.credentials import Credentials
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
 
-def main():
+def getCreds():
     """Shows basic usage of the Gmail API.
     Lists the user's Gmail labels.
     """
@@ -19,8 +19,11 @@ def main():
     # The file token.json stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
     # time.
+    print("about to look for")
     if os.path.exists('token.json'):
+        print("no token.json found")
         creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+        return creds
     # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
@@ -32,8 +35,10 @@ def main():
         # Save the credentials for the next run
         with open('token.json', 'w') as token:
             token.write(creds.to_json())
+        return creds
 
-    service = build('gmail', 'v1', credentials=creds)
+def getLabels():
+    service = build('gmail', 'v1', credentials=getCreds())
 
     # Call the Gmail API
     results = service.users().labels().list(userId='me').execute()
@@ -46,7 +51,26 @@ def main():
         for label in labels:
             print(label['name'])
 
+def getMessagesIds():
+    service = build('gmail', 'v1', credentials=getCreds())
+    nextPageToken = ''
+    messages = []
+    while True:
+        result = service.users().messages().list(userId='me',labelIds='INBOX', maxResults=500, pageToken=nextPageToken).execute()
+        if 'nextPageToken' in result:
+            nextPageToken = result['nextPageToken']
+            print("nextPageToken found: {0} ".format(nextPageToken))
+            messages.extend(result['messages'])
+            print ("Total messages in inbox: ", str(len(messages)))
+        else:
+            messages.extend(result['messages'])
+            print ("Total messages in inbox: ", str(len(messages)))
+            break
+
+    return messages
+
 if __name__ == '__main__':
-    main()
-    #print(sys.version)
-   
+    getLabels()
+    messages_ids = getMessageIds()
+    
+
